@@ -23,7 +23,7 @@ client.once("clientReady", () => {
     new ButtonBuilder()
       .setLabel("Continue with Discord")
       .setStyle(ButtonStyle.Link)
-      .setURL("http://localhost:3000/")
+      .setURL("https://discord-oauth-2.onrender.com/")
   );
 
   channel.send({

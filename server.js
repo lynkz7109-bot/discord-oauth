@@ -198,5 +198,5 @@ app.get("/callback", async (req, res) => {
 // ---------------- START ----------------
 
 app.listen(3000, () => {
-  console.log("Running on http://localhost:3000");
+  console.log("Running on https://discord-oauth-2.onrender.com");
 });
