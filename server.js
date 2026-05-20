@@ -5,30 +5,16 @@ const axios = require("axios");
 const app = express();
 
 // ---------------- CONFIG ----------------
-
-// Hardcoded safe values from your exact link
 const CLIENT_ID = "1506668934668091473"; 
 const REDIRECT_URI = "https://discord-oauth-2.onrender.com/callback";
 
-// Environment Variables
 const CLIENT_SECRET = process.env.CLIENT_SECRET;
 const BOT_TOKEN = process.env.BOT_TOKEN;
 const GUILD_ID = process.env.GUILD_ID;
 const ROLE_ID = process.env.ROLE_ID;
 
-// ---------------- STARTUP CHECK ----------------
-// This will log to your Render terminal if you forgot to add your variables!
-console.log("--- CHECKING ENVIRONMENT VARIABLES ---");
-console.log(`CLIENT_SECRET Loaded: ${!!CLIENT_SECRET}`);
-console.log(`BOT_TOKEN Loaded: ${!!BOT_TOKEN}`);
-console.log(`GUILD_ID Loaded: ${!!GUILD_ID}`);
-console.log(`ROLE_ID Loaded: ${!!ROLE_ID}`);
-console.log("--------------------------------------");
-
 // ---------------- HOME PAGE ----------------
-
 app.get("/", (req, res) => {
-  // Use the exact scopes needed: identify and guilds.join
   const oauthParams = new URLSearchParams({
     client_id: CLIENT_ID,
     response_type: "code",
@@ -36,61 +22,22 @@ app.get("/", (req, res) => {
     scope: "identify guilds.join" 
   });
 
-  const oauth = `https://discord.com/oauth2/authorize?${oauthParams.toString()}`;
-
   res.send(`
 <!DOCTYPE html>
 <html>
 <head>
   <title>Discord Verify</title>
   <style>
-    body {
-      margin: 0;
-      height: 100vh;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      font-family: Arial, sans-serif;
-      color: white;
-      background: linear-gradient(-45deg, #0f172a, #111827, #1e1b4b, #0b0c10);
-      background-size: 400% 400%;
-      animation: bg 10s ease infinite;
-    }
-    @keyframes bg {
-      0% { background-position: 0% 50%; }
-      50% { background-position: 100% 50%; }
-      100% { background-position: 0% 50%; }
-    }
-    .card {
-      background: rgba(255,255,255,0.06);
-      backdrop-filter: blur(12px);
-      padding: 40px;
-      border-radius: 18px;
-      text-align: center;
-      width: 360px;
-      box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
-    }
-    a {
-      display: inline-block;
-      padding: 12px 20px;
-      background: #5865F2;
-      color: white;
-      text-decoration: none;
-      border-radius: 10px;
-      font-weight: bold;
-      transition: 0.2s;
-    }
-    a:hover {
-      transform: scale(1.05);
-      background: #4752c4;
-    }
+    body { margin: 0; height: 100vh; display: flex; justify-content: center; align-items: center; font-family: Arial; color: white; background: #0f172a; }
+    .card { background: rgba(255,255,255,0.06); padding: 40px; border-radius: 18px; text-align: center; width: 360px; }
+    a { display: inline-block; padding: 12px 20px; background: #5865F2; color: white; text-decoration: none; border-radius: 10px; font-weight: bold; }
   </style>
 </head>
 <body>
   <div class="card">
     <h1>Discord Verification</h1>
     <p>Click below to continue</p>
-    <a href="${oauth}">Continue with Discord</a>
+    <a href="https://discord.com/oauth2/authorize?${oauthParams.toString()}">Continue with Discord</a>
   </div>
 </body>
 </html>
@@ -98,22 +45,24 @@ app.get("/", (req, res) => {
 });
 
 // ---------------- CALLBACK ----------------
-
 app.get("/callback", async (req, res) => {
   try {
     const code = req.query.code;
     if (!code) return res.status(400).send("No code provided from Discord.");
 
+    // Explicitly stringify the parameters to prevent payload distortion
+    const tokenRequestBody = new URLSearchParams({
+      client_id: CLIENT_ID.trim(),
+      client_secret: (CLIENT_SECRET || "").trim(),
+      grant_type: "authorization_code",
+      code: code,
+      redirect_uri: REDIRECT_URI.trim(),
+    }).toString();
+
     // 1. EXCHANGE CODE FOR ACCESS TOKEN
     const tokenRes = await axios.post(
-      "https://discord.com/api/oauth2/token",
-      new URLSearchParams({
-        client_id: CLIENT_ID,
-        client_secret: CLIENT_SECRET,
-        grant_type: "authorization_code",
-        code: code,
-        redirect_uri: REDIRECT_URI,
-      }),
+      "https://discord.com/api/v10/oauth2/token",
+      tokenRequestBody,
       {
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
       }
@@ -122,36 +71,33 @@ app.get("/callback", async (req, res) => {
     const accessToken = tokenRes.data.access_token;
 
     // 2. FETCH USER PROFILE DATA
-    const userRes = await axios.get("https://discord.com/api/users/@me", {
+    const userRes = await axios.get("https://discord.com/api/v10/users/@me", {
       headers: { Authorization: `Bearer ${accessToken}` },
     });
 
     const user = userRes.data;
 
     // 3. ADD MEMBER TO SERVER AND ASSIGN ROLE
-    // We wrap ROLE_ID in String() because Discord strict-checks that roles are an array of strings.
-    // If it passes as a number, it throws "Invalid Form Body".
     try {
       await axios.put(
-        `https://discord.com/api/guilds/${GUILD_ID}/members/${user.id}`,
+        `https://discord.com/api/v10/guilds/${GUILD_ID.trim()}/members/${user.id}`,
         { 
           access_token: accessToken,
-          roles: [String(ROLE_ID)] 
+          roles: [String(ROLE_ID).trim()] 
         },
         {
           headers: {
-            Authorization: `Bot ${BOT_TOKEN}`,
+            Authorization: `Bot ${BOT_TOKEN.trim()}`,
             "Content-Type": "application/json",
           },
         }
       );
     } catch (memberErr) {
-      console.log("Adding member failed. Attempting fallback role assignment...");
-      // Fallback: If they are already in the server, this assigns the role.
+      // Fallback: If they are already in the server, apply the role directly
       await axios.put(
-        `https://discord.com/api/guilds/${GUILD_ID}/members/${user.id}/roles/${ROLE_ID}`,
+        `https://discord.com/api/v10/guilds/${GUILD_ID.trim()}/members/${user.id}/roles/${String(ROLE_ID).trim()}`,
         {},
-        { headers: { Authorization: `Bot ${BOT_TOKEN}` } }
+        { headers: { Authorization: `Bot ${BOT_TOKEN.trim()}` } }
       );
     }
 
@@ -162,58 +108,51 @@ app.get("/callback", async (req, res) => {
 <head>
   <title>Verified</title>
   <style>
-    body {
-      margin: 0;
-      height: 100vh;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      font-family: Arial, sans-serif;
-      color: white;
-      background: linear-gradient(-45deg, #0f172a, #111827, #1e1b4b, #0b0c10);
-      background-size: 400% 400%;
-      animation: bg 10s ease infinite;
-    }
-    .card {
-      background: rgba(255,255,255,0.06);
-      backdrop-filter: blur(12px);
-      padding: 40px;
-      border-radius: 18px;
-      text-align: center;
-    }
-    .check { font-size: 60px; color: #4bc0c0; }
+    body { margin: 0; height: 100vh; display: flex; justify-content: center; align-items: center; font-family: Arial; color: white; background: #0f172a; }
+    .card { background: rgba(255,255,255,0.06); padding: 40px; border-radius: 18px; text-align: center; }
   </style>
 </head>
 <body>
   <div class="card">
-    <div class="check">✔</div>
-    <h2>Verified</h2>
+    <h2 style="color: #4bc0c0;">✔ Verified</h2>
     <p>${user.username}, you can close this tab.</p>
   </div>
   <script>
-    setTimeout(() => {
-      window.location.href = "https://discord.com/channels/@me";
-    }, 3000);
+    setTimeout(() => { window.location.href = "https://discord.com/channels/@me"; }, 3000);
   </script>
 </body>
 </html>
     `);
 
   } catch (err) {
-    console.error("API ERROR DETECTED:", err.response?.data || err.message);
+    // ---------------- ON-SCREEN DEBUGGER ----------------
+    // If it fails, this will show you exactly what your server is seeing.
+    const errorPayload = err.response?.data || err.message;
+    
     res.status(500).send(`
-      <div style="font-family: Arial; padding: 20px; color: white; background: #2f3136; height: 100vh;">
-        <h2>Verification Failed</h2>
-        <p>Something went wrong while talking to Discord's API.</p>
-        <pre style="background: #202225; padding: 15px; border-radius: 8px;">${JSON.stringify(err.response?.data || err.message, null, 2)}</pre>
+      <div style="font-family: Arial; padding: 30px; color: white; background: #1e1f22; min-height: 100vh;">
+        <h2 style="color: #f23f43;">Verification Failed</h2>
+        <p>Discord rejected the connection request.</p>
+        
+        <h3>1. Discord's Response:</h3>
+        <pre style="background: #2b2d31; padding: 15px; border-radius: 8px; color: #f23f43;">${JSON.stringify(errorPayload, null, 2)}</pre>
+        
+        <h3>2. Server Environment Check:</h3>
+        <ul style="background: #2b2d31; padding: 15px 30px; border-radius: 8px; list-style-type: square; line-height: 1.6;">
+          <li><strong>CLIENT_ID:</strong> "${CLIENT_ID}"</li>
+          <li><strong>CLIENT_SECRET Status:</strong> ${CLIENT_SECRET ? `✅ Loaded (Length: ${CLIENT_SECRET.length} characters)` : "❌ MISSING / EMPTY"}</li>
+          <li><strong>BOT_TOKEN Status:</strong> ${BOT_TOKEN ? "✅ Loaded" : "❌ MISSING / EMPTY"}</li>
+          <li><strong>GUILD_ID:</strong> "${GUILD_ID || "❌ MISSING"}"</li>
+          <li><strong>ROLE_ID:</strong> "${ROLE_ID || "❌ MISSING"}"</li>
+        </ul>
+        <p style="color: #949ba4;">If CLIENT_SECRET is missing or the length looks wrong, update your environment variables in Render.</p>
       </div>
     `);
   }
 });
 
 // ---------------- START SERVER ----------------
-
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
+  console.log(`Server live on port ${PORT}`);
 });
