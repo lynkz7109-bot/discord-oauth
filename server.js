@@ -74,7 +74,7 @@ app.get("/", (req, res) => {
 <body>
   <div class="card">
     <h1>Discord Verification</h1>
-    <p>Login to join the server</p>
+    <p>Login to continue</p>
     <a href="${oauth}">Continue with Discord</a>
   </div>
 </body>
@@ -118,7 +118,7 @@ app.get("/callback", async (req, res) => {
 
     const user = userRes.data;
 
-    // ADD USER TO GUILD
+    // ADD USER TO SERVER
     await axios.put(
       `https://discord.com/api/guilds/${GUILD_ID}/members/${user.id}`,
       { access_token: accessToken },
@@ -199,6 +199,8 @@ app.get("/callback", async (req, res) => {
 
 // ---------------- START ----------------
 
-app.listen(3000, () => {
+const PORT = process.env.PORT || 3000;
+
+app.listen(PORT, () => {
   console.log("Bot running on Render");
 });
