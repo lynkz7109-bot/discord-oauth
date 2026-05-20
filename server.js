@@ -4,20 +4,23 @@ const axios = require("axios");
 
 const app = express();
 
-const {
-  CLIENT_ID,
-  CLIENT_SECRET,
-  BOT_TOKEN,
-  GUILD_ID,
-  ROLE_ID,
-  REDIRECT_URI,
-} = process.env;
+// ---------------- CONFIG ----------------
+
+const CLIENT_ID = process.env.CLIENT_ID;
+const CLIENT_SECRET = process.env.CLIENT_SECRET;
+const BOT_TOKEN = process.env.BOT_TOKEN;
+const GUILD_ID = process.env.GUILD_ID;
+const ROLE_ID = process.env.ROLE_ID;
+
+// IMPORTANT: hardcoded to avoid Render/env mismatch bugs
+const REDIRECT_URI = "https://discord-oauth-2.onrender.com/callback";
 
 // ---------------- HOME PAGE ----------------
 
 app.get("/", (req, res) => {
-
-  const oauth = `https://discord.com/oauth2/authorize?client_id=${CLIENT_ID}&response_type=code&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&scope=guilds%20guilds.join%20identify`;
+  const oauth = `https://discord.com/oauth2/authorize?client_id=${CLIENT_ID}&response_type=code&redirect_uri=${encodeURIComponent(
+    REDIRECT_URI
+  )}&scope=identify%20guilds.join`;
 
   res.send(`
 <!DOCTYPE html>
@@ -74,7 +77,7 @@ app.get("/", (req, res) => {
 <body>
   <div class="card">
     <h1>Discord Verification</h1>
-    <p>Login to continue</p>
+    <p>Click below to continue</p>
     <a href="${oauth}">Continue with Discord</a>
   </div>
 </body>
@@ -86,18 +89,17 @@ app.get("/", (req, res) => {
 
 app.get("/callback", async (req, res) => {
   try {
-
     const code = req.query.code;
     if (!code) return res.send("No code provided");
 
-    // TOKEN EXCHANGE
+    // ---------------- TOKEN EXCHANGE ----------------
     const tokenRes = await axios.post(
       "https://discord.com/api/oauth2/token",
       new URLSearchParams({
         client_id: CLIENT_ID,
         client_secret: CLIENT_SECRET,
         grant_type: "authorization_code",
-        code,
+        code: code,
         redirect_uri: REDIRECT_URI,
       }),
       {
@@ -109,7 +111,7 @@ app.get("/callback", async (req, res) => {
 
     const accessToken = tokenRes.data.access_token;
 
-    // GET USER
+    // ---------------- GET USER ----------------
     const userRes = await axios.get("https://discord.com/api/users/@me", {
       headers: {
         Authorization: `Bearer ${accessToken}`,
@@ -118,7 +120,7 @@ app.get("/callback", async (req, res) => {
 
     const user = userRes.data;
 
-    // ADD TO SERVER
+    // ---------------- ADD TO SERVER ----------------
     await axios.put(
       `https://discord.com/api/guilds/${GUILD_ID}/members/${user.id}`,
       { access_token: accessToken },
@@ -130,7 +132,7 @@ app.get("/callback", async (req, res) => {
       }
     );
 
-    // GIVE ROLE
+    // ---------------- GIVE ROLE ----------------
     await axios.put(
       `https://discord.com/api/guilds/${GUILD_ID}/members/${user.id}/roles/${ROLE_ID}`,
       {},
@@ -141,7 +143,7 @@ app.get("/callback", async (req, res) => {
       }
     );
 
-    // SUCCESS PAGE (FIXED)
+    // ---------------- SUCCESS PAGE ----------------
     res.send(`
 <!DOCTYPE html>
 <html>
@@ -192,7 +194,7 @@ app.get("/callback", async (req, res) => {
     `);
 
   } catch (err) {
-    console.log(err.response?.data || err.message);
+    console.log("ERROR:", err.response?.data || err.message);
     res.send(`<pre>${JSON.stringify(err.response?.data || err.message, null, 2)}</pre>`);
   }
 });
@@ -202,5 +204,5 @@ app.get("/callback", async (req, res) => {
 const PORT = process.env.PORT || 3000;
 
 app.listen(PORT, () => {
-  console.log("Bot running on Render");
+  console.log("Server running on Render");
 });
