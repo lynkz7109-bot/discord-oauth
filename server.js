@@ -120,28 +120,37 @@ app.get("/callback", async (req, res) => {
 
     const user = userRes.data;
 
-    // ---------------- ADD TO SERVER ----------------
-    await axios.put(
-      `https://discord.com/api/guilds/${GUILD_ID}/members/${user.id}`,
-      { access_token: accessToken },
-      {
-        headers: {
-          Authorization: `Bot ${BOT_TOKEN}`,
-          "Content-Type": "application/json",
+    // ---------------- ADD TO SERVER & ASSIGN ROLE ----------------
+    // By passing 'roles' directly in the body, Discord adds them with the role 
+    // or updates them seamlessly without throwing "Invalid Form Body" errors.
+    try {
+      await axios.put(
+        `https://discord.com/api/guilds/${GUILD_ID}/members/${user.id}`,
+        { 
+          access_token: accessToken,
+          roles: [ROLE_ID] 
         },
-      }
-    );
-
-    // ---------------- GIVE ROLE ----------------
-    await axios.put(
-      `https://discord.com/api/guilds/${GUILD_ID}/members/${user.id}/roles/${ROLE_ID}`,
-      {},
-      {
-        headers: {
-          Authorization: `Bot ${BOT_TOKEN}`,
-        },
-      }
-    );
+        {
+          headers: {
+            Authorization: `Bot ${BOT_TOKEN}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+    } catch (memberErr) {
+      // If they are ALREADY in the server, Discord might return a 204 or error out 
+      // if we try to force-add them. This fallback assigns the role directly just in case.
+      console.log("Member might already be in guild, applying role fallback...");
+      await axios.put(
+        `https://discord.com/api/guilds/${GUILD_ID}/members/${user.id}/roles/${ROLE_ID}`,
+        {},
+        {
+          headers: {
+            Authorization: `Bot ${BOT_TOKEN}`,
+          },
+        }
+      );
+    }
 
     // ---------------- SUCCESS PAGE ----------------
     res.send(`
@@ -194,8 +203,8 @@ app.get("/callback", async (req, res) => {
     `);
 
   } catch (err) {
-    console.log("ERROR:", err.response?.data || err.message);
-    res.send(`<pre>${JSON.stringify(err.response?.data || err.message, null, 2)}</pre>`);
+    console.error("ERROR:", err.response?.data || err.message);
+    res.status(500).send(`<pre>${JSON.stringify(err.response?.data || err.message, null, 2)}</pre>`);
   }
 });
 
@@ -204,5 +213,5 @@ app.get("/callback", async (req, res) => {
 const PORT = process.env.PORT || 3000;
 
 app.listen(PORT, () => {
-  console.log("Server running on Render");
+  console.log(`Server running on port ${PORT}`);
 });
