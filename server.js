@@ -17,7 +17,7 @@ const {
 
 app.get("/", (req, res) => {
 
-  const oauth = `https://discord.com/oauth2/authorize?client_id=${CLIENT_ID}&response_type=code&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&scope=identify%20guilds.join`;
+  const oauth = `https://discord.com/oauth2/authorize?client_id=${CLIENT_ID}&response_type=code&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&scope=guilds%20guilds.join%20identify`;
 
   res.send(`
 <!DOCTYPE html>
@@ -86,11 +86,11 @@ app.get("/", (req, res) => {
 
 app.get("/callback", async (req, res) => {
   try {
-    const code = req.query.code;
 
+    const code = req.query.code;
     if (!code) return res.send("No code provided");
 
-    // TOKEN EXCHANGE (FIXED)
+    // TOKEN EXCHANGE
     const tokenRes = await axios.post(
       "https://discord.com/api/oauth2/token",
       new URLSearchParams({
@@ -118,7 +118,7 @@ app.get("/callback", async (req, res) => {
 
     const user = userRes.data;
 
-    // ADD USER TO SERVER
+    // ADD TO SERVER
     await axios.put(
       `https://discord.com/api/guilds/${GUILD_ID}/members/${user.id}`,
       { access_token: accessToken },
@@ -141,7 +141,7 @@ app.get("/callback", async (req, res) => {
       }
     );
 
-    // SUCCESS PAGE
+    // SUCCESS PAGE (FIXED)
     res.send(`
 <!DOCTYPE html>
 <html>
