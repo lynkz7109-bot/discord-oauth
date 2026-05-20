@@ -16,9 +16,8 @@ const {
 // ---------------- HOME PAGE ----------------
 
 app.get("/", (req, res) => {
-  const oauth = `https://discord.com/oauth2/authorize?client_id=${CLIENT_ID}&response_type=code&redirect_uri=${encodeURIComponent(
-    REDIRECT_URI
-  )}&scope=identify%20guilds.join`;
+
+  const oauth = `https://discord.com/oauth2/authorize?client_id=${CLIENT_ID}&response_type=code&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&scope=identify%20guilds.join`;
 
   res.send(`
 <!DOCTYPE html>
@@ -89,6 +88,9 @@ app.get("/callback", async (req, res) => {
   try {
     const code = req.query.code;
 
+    if (!code) return res.send("No code provided");
+
+    // TOKEN EXCHANGE (FIXED)
     const tokenRes = await axios.post(
       "https://discord.com/api/oauth2/token",
       new URLSearchParams({
@@ -107,6 +109,7 @@ app.get("/callback", async (req, res) => {
 
     const accessToken = tokenRes.data.access_token;
 
+    // GET USER
     const userRes = await axios.get("https://discord.com/api/users/@me", {
       headers: {
         Authorization: `Bearer ${accessToken}`,
@@ -164,7 +167,6 @@ app.get("/callback", async (req, res) => {
       padding: 40px;
       border-radius: 18px;
       text-align: center;
-      width: 380px;
     }
 
     .check {
@@ -198,5 +200,5 @@ app.get("/callback", async (req, res) => {
 // ---------------- START ----------------
 
 app.listen(3000, () => {
-  console.log("Running on https://discord-oauth-2.onrender.com");
+  console.log("Bot running on Render");
 });
