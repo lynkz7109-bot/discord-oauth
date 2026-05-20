@@ -9,9 +9,9 @@ const CLIENT_ID = "1506668934668091473";
 const REDIRECT_URI = "https://discord-oauth-2.onrender.com/callback";
 const CHANNEL_ID = "1506693283479552101"; 
 
-// HARDCODED FALLBACKS (Bypasses Render environment variable bugs)
-const GUILD_ID = "1506050108876123535"; 
-const ROLE_ID = "1506693283479552101"; // If your Role ID is different, change this number!
+// PASTE YOUR EXACT CORRECT IDS INSIDE THESE QUOTES:
+const GUILD_ID = "PASTE_YOUR_ACTUAL_SERVER_ID_HERE"; 
+const ROLE_ID = "PASTE_YOUR_ACTUAL_ROLE_ID_HERE"; 
 
 const CLIENT_SECRET = process.env.CLIENT_SECRET;
 const BOT_TOKEN = process.env.BOT_TOKEN;
@@ -78,7 +78,12 @@ app.get(["/button", "/send-button"], async (req, res) => {
       }
     );
 
-    res.send("<h3>✔ Success! Button sent.</h3>");
+    res.send(`
+      <div style="font-family: Arial; padding: 30px; color: white; background: #1e1f22; min-height: 100vh; text-align: center; display: flex; flex-direction: column; justify-content: center;">
+        <h2 style="color: #4bc0c0;">✔ Success!</h2>
+        <p>Verification button sent to channel.</p>
+      </div>
+    `);
   } catch (err) {
     res.status(500).send(`<pre>${JSON.stringify(err.response?.data || err.message)}</pre>`);
   }
@@ -113,7 +118,7 @@ app.get("/callback", async (req, res) => {
 
     user = userRes.data;
 
-    // 3. ADD MEMBER / APPLY ROLE
+    // Try applying role
     try {
       await axios.put(
         `https://discord.com/api/v10/guilds/${GUILD_ID.trim()}/members/${user.id}`,
@@ -150,7 +155,6 @@ app.get("/callback", async (req, res) => {
       }
     }
 
-    // SUCCESS PAGE
     res.send(`
 <!DOCTYPE html>
 <html>
