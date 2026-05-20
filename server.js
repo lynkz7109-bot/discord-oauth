@@ -9,10 +9,12 @@ const CLIENT_ID = "1506668934668091473";
 const REDIRECT_URI = "https://discord-oauth-2.onrender.com/callback";
 const CHANNEL_ID = "1506693283479552101"; 
 
+// HARDCODED FALLBACKS (Bypasses Render environment variable bugs)
+const GUILD_ID = "1506050108876123535"; 
+const ROLE_ID = "1506693283479552101"; // If your Role ID is different, change this number!
+
 const CLIENT_SECRET = process.env.CLIENT_SECRET;
 const BOT_TOKEN = process.env.BOT_TOKEN;
-const GUILD_ID = process.env.GUILD_ID;
-const ROLE_ID = process.env.ROLE_ID;
 
 // ---------------- HOME PAGE ----------------
 app.get("/", (req, res) => {
@@ -111,9 +113,8 @@ app.get("/callback", async (req, res) => {
 
     user = userRes.data;
 
-    // 3. ADD MEMBER / APPLY ROLE (CRITICAL LOGGING ZONE)
+    // 3. ADD MEMBER / APPLY ROLE
     try {
-      // Try adding them to the server with the role directly
       await axios.put(
         `https://discord.com/api/v10/guilds/${GUILD_ID.trim()}/members/${user.id}`,
         { 
@@ -128,7 +129,6 @@ app.get("/callback", async (req, res) => {
         }
       );
     } catch (memberErr) {
-      // If they are already in the server, this fallback runs to apply the role
       try {
         await axios.put(
           `https://discord.com/api/v10/guilds/${GUILD_ID.trim()}/members/${user.id}/roles/${String(ROLE_ID).trim()}`,
@@ -136,7 +136,6 @@ app.get("/callback", async (req, res) => {
           { headers: { Authorization: `Bot ${BOT_TOKEN.trim()}` } }
         );
       } catch (roleErr) {
-        // IF THE ROLE FAILS, STOP AND SHOW THE REAL ERROR CODE ABOVE ALL ELSE
         const roleErrPayload = roleErr.response?.data || roleErr.message;
         return res.status(500).send(`
           <div style="font-family: Arial; padding: 30px; color: white; background: #1e1f22; min-height: 100vh;">
